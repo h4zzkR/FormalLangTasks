@@ -154,6 +154,8 @@ struct RegularParser {
     }
 
     void star_stack() {
+		if (stack.empty())
+		   throw std::out_of_range("Stack size does not meet the requirements");
         auto one = stack.top(); stack.pop();
         std::vector<DpHandler> handler = one;
         for (int i = 1; i <= len; ++i) {
