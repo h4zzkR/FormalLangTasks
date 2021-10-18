@@ -5,12 +5,12 @@ include(ExternalProject)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" ${CMAKE_SOURCE_DIR}/cmake)
 include(CodeCoverage)
 
-set(EXTERNAL_INSTALL_LOCATION ${Testing_SOURCE_DIR}/3rdparty)
+set(EXTERNAL_INSTALL_LOCATION ${ReParser_SOURCE_DIR}/3rdparty)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Testing_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ReParser_SOURCE_DIR}/bin)
 
 SET(CMAKE_CXX_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage --coverage")
 SET(CMAKE_C_FLAGS "-g -O0 -fprofile-arcs -ftest-coverage --coverage")
@@ -35,9 +35,9 @@ message(${PYTHON_EXECUTABLE})
 
 add_custom_target(
     InstallDeps
-    COMMAND ${Testing_SOURCE_DIR}/install_deps.sh ${PYTHON_EXECUTABLE}
+    COMMAND ${ReParser_SOURCE_DIR}/install_deps.sh ${PYTHON_EXECUTABLE}
     DEPENDS install_deps.sh
-    WORKING_DIRECTORY ${Testing_SOURCE_DIR}
+    WORKING_DIRECTORY ${ReParser_SOURCE_DIR}
     COMMENT "Installing dependencies"
 )
 
@@ -51,7 +51,7 @@ function(run_coverage test_sources sources coverage_target target_name coverage_
     add_executable(${test_name} ${test_sources} ${sources})
 
     target_link_libraries(
-		${test_name} gtest_main gtest gmock Threads::Threads
+		${test_name} gtest_main gtest Threads::Threads
 	)
 
     setup_target_for_coverage_gcovr(

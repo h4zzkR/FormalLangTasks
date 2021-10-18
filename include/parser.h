@@ -79,9 +79,9 @@ struct RegularParser {
         else if (b == -1)
             handler[0].min_len_of_correct = a;
         else {
-            if (one[0].has_right_cnt && !two[0].has_right_cnt)
+            if (one[0].has_right_cnt && !two[0].has_right_cnt) // длина одного из - 0
                 handler[0].min_len_of_correct = a;
-            else if (!one[0].has_right_cnt && two[0].has_right_cnt)
+            else if (!one[0].has_right_cnt && two[0].has_right_cnt) // длина одного из - 0
                 handler[0].min_len_of_correct = b;
             else
                 handler[0].min_len_of_correct = std::min(a,b);
