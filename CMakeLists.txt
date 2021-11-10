@@ -20,6 +20,10 @@ if (APPLE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
 
+if (CMAKE_CXX_FLAGS_DEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG")
+endif()
+
 ExternalProject_Add(
     googletest_repo
     GIT_REPOSITORY https://github.com/google/googletest.git

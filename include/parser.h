@@ -1,7 +1,3 @@
-//
-// Created by h4zzkr on 17.10.2021.
-//
-
 #ifndef REGEXP_PARSER_PARSER_H
 #define REGEXP_PARSER_PARSER_H
 
@@ -9,8 +5,13 @@
 #include <stack>
 #include <vector>
 #include <iostream>
+#include <memory>
 
-struct RegularParser {
+#ifdef DEBUG
+    #include <gtest/gtest_prod.h>
+#endif
+
+class RegularParser {
     std::string regular;
     int len{};
     char letter{};
@@ -18,14 +19,13 @@ struct RegularParser {
     struct DpHandler {
         bool has_right_cnt = false; // есть ли в регулярке слово с i буквами letter
         int  min_len_of_correct = 0; // минимальная длина такого слова
-
         DpHandler(bool has_right_cnt = false, int ml = 0): has_right_cnt(has_right_cnt),
                                                            min_len_of_correct(ml) {}
     };
 
     std::stack<std::vector<DpHandler>> stack;
 
-    void stringInput(const std::string& s = "") {
+    void prepareInputString(const std::string& s = "") {
         int i = 0;
         for (letter = s[i]; !std::isdigit(letter); ++i, letter = s[i]) {
             if (letter != ' ')
@@ -40,12 +40,6 @@ struct RegularParser {
             number += digit;
         }
         len = std::stoi(number);
-    }
-
-    void cinInput() {
-        std::string inp;
-        std::cin >> inp;
-        stringInput(inp);
     }
 
     std::pair<std::vector<DpHandler>, std::vector<DpHandler>> top() {
@@ -107,7 +101,6 @@ struct RegularParser {
     }
 
     void concat(std::vector<DpHandler>&one, std::vector<DpHandler>& two, std::vector<DpHandler>& handler) const {
-
         // BASE
         for (int i = 0; i < 2; ++i) {
             std::vector<DpHandler> &frst = (i == 0) ? one : two;
@@ -165,43 +158,43 @@ struct RegularParser {
         }
         handler[0].min_len_of_correct = 0; // epsilon word
         stack.push(handler);
-    } // (abc)*
-
-    void parse() {
+    }
+    
+    void doParse() {
         for (char c : regular) {
             if (c >= 'a' && c <= 'c') {
                 push_letter(c);
             } else if (c == '+') {
-                sum_stack(); // here todo
+                sum_stack();
             } else if (c == '.') {
                 concat_stack();
             } else if (c == '*') {
                 star_stack();
             }
         }
-    } // abc.. * aaa.. + ca. + * b 1
+    }
 
-    int output() {
+    void reset() {
         std::stack<std::vector<DpHandler>> prey;
         std::swap(prey, stack);
-        int out = prey.top()[len].min_len_of_correct;
         regular.clear();
-        return out;
     }
 
     std::string getAnswer() {
-        int out = output();
+        int out = stack.top()[len].min_len_of_correct;
+        reset();
         return std::to_string(out);
 //        return (out == 0) ? "INF" : std::to_string(out);
     }
 
-    void coutAnswer() {
-        std::cout << getAnswer();
-    }
+#ifdef DEBUG
+    FRIEND_TEST(TestCases1, CorrectWork);
+#endif
 
-    std::string pipeline(const std::string& inp = "") {
-        stringInput(inp);
-        parse();
+public:
+    std::string parse(const std::string& inp) {
+        prepareInputString(inp);
+        doParse();
         return getAnswer();
     }
 };
