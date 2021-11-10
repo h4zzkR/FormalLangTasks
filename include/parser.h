@@ -19,8 +19,7 @@ class RegularParser {
     struct DpHandler {
         bool has_right_cnt = false; // есть ли в регулярке слово с i буквами letter
         int  min_len_of_correct = 0; // минимальная длина такого слова
-        DpHandler(bool has_right_cnt = false, int ml = 0): has_right_cnt(has_right_cnt),
-                                                           min_len_of_correct(ml) {}
+        DpHandler(bool has_right_cnt = false, int ml = 0): has_right_cnt(has_right_cnt), min_len_of_correct(ml) {}
     };
 
     std::stack<std::vector<DpHandler>> stack;
