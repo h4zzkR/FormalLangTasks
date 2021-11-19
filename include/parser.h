@@ -6,16 +6,18 @@
 #include <vector>
 #include <iostream>
 #include <memory>
-#include <sstream>
 
 #ifdef DEBUG
-    #include <gtest/gtest_prod.h>
+#include <gtest/gtest_prod.h>
 #endif
 
-class RegularParser {
+class Parser;
+class ParserImplementation {
     std::string regular;
     int len{};
     char letter{};
+
+    friend Parser;
 
     struct DpHandler {
         bool has_right_cnt = false; // есть ли в регулярке слово с i буквами letter
@@ -25,7 +27,7 @@ class RegularParser {
 
     std::stack<std::vector<DpHandler>> stack;
 
-    void prepareInputString(const std::string& s = "") {
+    void prepareInputString(const std::string& s) {
         int i = 0;
         for (letter = s[i]; !std::isdigit(letter); ++i, letter = s[i]) {
             if (letter != ' ')
@@ -147,8 +149,8 @@ class RegularParser {
     }
 
     void star_stack() {
-		if (stack.empty())
-		   throw std::out_of_range("Stack size does not meet the requirements");
+        if (stack.empty())
+            throw std::out_of_range("Stack size does not meet the requirements");
         auto one = stack.top(); stack.pop();
         std::vector<DpHandler> handler = one;
         for (int i = 1; i <= len; ++i) {
@@ -159,7 +161,7 @@ class RegularParser {
         handler[0].min_len_of_correct = 0; // epsilon word
         stack.push(handler);
     }
-    
+
     void doParse() {
         for (char c : regular) {
             if (c >= 'a' && c <= 'c') {
@@ -184,14 +186,12 @@ class RegularParser {
         int out = stack.top()[len].min_len_of_correct;
         reset();
         return std::to_string(out);
-//        return (out == 0) ? "INF" : std::to_string(out);
     }
 
 #ifdef DEBUG
     FRIEND_TEST(TestCases1, CorrectWork);
 #endif
 
-public:
     std::string parse(const std::string& inp) {
         prepareInputString(inp);
         doParse();
@@ -199,31 +199,86 @@ public:
     }
 };
 
-class ICreator {
+class Parser {
+    ParserImplementation ps;
+
+#ifdef DEBUG
+    FRIEND_TEST(TestCases1, CorrectWork);
+#endif
+
 public:
-    virtual ~ICreator() = default;
-    virtual void setStdinInput() const = 0;
-    virtual void setStringInput() const = 0;
-    virtual void setStringOutput() const = 0;
-    virtual void setStdoutOutput() const = 0;
+    class Input {
+    public:
+        Input() = default;
+
+        std::string buffer;
+        virtual ~Input() = default;
+    };
+    class StringInput : public Input {
+    public:
+        StringInput& operator=(const std::string& buf) {
+            buffer = buf;
+            return *this;
+        }
+        StringInput(const std::string& buf) {
+            buffer = buf;
+        }
+        StringInput(std::string&& buf) {
+            buffer = std::move(buf);
+        }
+
+        friend StringInput& operator<< (StringInput &in, const std::string& inp);
+        ~StringInput() = default;
+    };
+    class StdinInput : public Input {
+    public:
+        friend std::istream& operator>> (std::istream &in, Parser::StdinInput& inp);
+        ~StdinInput() = default;
+    };
+    class Output {
+    public:
+        std::string buffer;
+        friend std::ostream& operator<< (std::ostream &out, const Output &o);
+        friend std::string& operator<< (std::string &out, const Output &o);
+        operator std::string() const { return buffer; }
+    };
+public:
+    Output out;
+
+    Parser() {}
+
+    Output parse(Input inp) {
+        out.buffer = ps.parse(inp.buffer);
+        return out;
+    }
 };
 
-class Input {
-public:
-    std::stringstream stream;
-    virtual ~Input() = default;
-};
-
-class StringInput : public Input {
-public:
-    void setInput() {}
-    friend std::string& operator>> (std::string &in, StringInput& inp);
-    ~StringInput() = default;
-};
-
-std::string& operator>> (std::string &in, StringInput& inp) {
-    inp.stream << in;
+std::string& operator>> (std::string &in, Parser::StringInput& inp) {
+    inp.buffer = in;
     return in;
+}
+Parser::StringInput &operator<<(Parser::StringInput &in, const std::string &inp) {
+    in.buffer = inp;
+    return in;
+}
+std::istream& operator>> (std::istream &in, Parser::StdinInput& inp) {
+    std::string buffer;
+    in >> inp.buffer;
+    inp.buffer += ' ';
+    in >> buffer;
+    buffer += ' ';
+    inp.buffer += buffer;
+    in >> buffer;
+    inp.buffer += buffer;
+    return in;
+}
+std::ostream& operator<< (std::ostream &out, const Parser::Output &o) {
+    out << o.buffer;
+    return out;
+}
+std::string& operator<< (std::string &out, const Parser::Output &o) {
+    out = o.buffer;
+    return out;
 }
 
 #endif //REGEXP_PARSER_PARSER_H

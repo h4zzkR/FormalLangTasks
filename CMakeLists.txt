@@ -72,3 +72,13 @@ add_subdirectory(src/parser-library)
 add_subdirectory(tests)
 
 
+
+
+#cmake_minimum_required(VERSION 3.20)
+#project(FormalLangTasks)
+#
+#set(CMAKE_CXX_STANDARD 17)
+#
+#add_executable(FormalLangTasks
+#        main.cpp)
+#
