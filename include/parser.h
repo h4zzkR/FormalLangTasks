@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <sstream>
 
 #ifdef DEBUG
     #include <gtest/gtest_prod.h>
@@ -197,5 +198,32 @@ public:
         return getAnswer();
     }
 };
+
+class ICreator {
+public:
+    virtual ~ICreator() = default;
+    virtual void setStdinInput() const = 0;
+    virtual void setStringInput() const = 0;
+    virtual void setStringOutput() const = 0;
+    virtual void setStdoutOutput() const = 0;
+};
+
+class Input {
+public:
+    std::stringstream stream;
+    virtual ~Input() = default;
+};
+
+class StringInput : public Input {
+public:
+    void setInput() {}
+    friend std::string& operator>> (std::string &in, StringInput& inp);
+    ~StringInput() = default;
+};
+
+std::string& operator>> (std::string &in, StringInput& inp) {
+    inp.stream << in;
+    return in;
+}
 
 #endif //REGEXP_PARSER_PARSER_H

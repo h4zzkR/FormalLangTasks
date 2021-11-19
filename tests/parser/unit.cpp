@@ -1,6 +1,15 @@
 #include "parser.h"
 #include <gtest/gtest.h>
 
+TEST(TestCases0, CorrectWork) {
+    std::string innn = "asasas";
+    StringInput in;
+    innn >> in;
+    std::string tmp;
+    in.stream >> tmp;
+    EXPECT_EQ(tmp, innn);
+}
+
 TEST(TestCases1, CorrectWork) {
     RegularParser rp;
     rp.prepareInputString("ab + c.aba. * .bac. + . + * b 2");
