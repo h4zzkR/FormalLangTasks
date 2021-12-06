@@ -67,8 +67,12 @@ namespace parts {
         Grammar() = default;
         Grammar(char startLabel) {
             assert(std::isupper(startLabel));
+
+            // new fake start TODO DEBUG
             std::vector<MetaTerm> r0({MetaTerm(startLabel, false)});
+//            std::vector<MetaTerm> r0({MetaTerm('T', false), MetaTerm('T')});
             rules.emplace_back(MetaTerm(startLabel, true), std::move(r0));
+//            rules.emplace_back(MetaTerm(startLabel, true), std::move(r0));
         }
         void add(char L, const std::string& R) {
             assert(std::isupper(L));
@@ -80,11 +84,13 @@ namespace parts {
     };
 }
 
+/*
+ * LR(1) parser implementation
+ */
 class YAParser {
     parts::Grammar G;
     char eps = '@';
-
-    // набор терминалов, в которые может раскрыться нетерминал
+    parts::MetaTerm epst = parts::MetaTerm(eps);
     std::map<char, std::set<char>> First;
 
     struct Config {
@@ -118,39 +124,118 @@ class YAParser {
     struct State {
         State* parent = nullptr;
         std::vector<Config> configs;
-        size_t nexpanded_cnt; // количество правил, в которых еще не дошли до конца
-        std::map<parts::MetaTerm, State*> go;
+
+        [[maybe_unused]] size_t nexpanded_cnt; // количество правил, в которых еще не дошли до конца
+        std::map<char, State*> go;
+
+        // первые kernel_size в configs отдаются под kernel
+        size_t kernel_size = 1;
 
         void add(const parts::Rule& rule, std::vector<char> oracles) {
-            ++nexpanded_cnt;
-            configs.emplace_back(rule, std::move(oracles));
+             configs.push_back(std::move(Config(rule, std::move(oracles))));
         }
 
-        State(State* parent = nullptr): parent(parent) {
+        void add(const Config& cfg) {
+            configs.push_back(cfg);
+        }
+
+        State(State* parent = nullptr, size_t size = 1): parent(parent), kernel_size(size) {
             nexpanded_cnt = 0;
         }
     };
 
+    State* dfa;
+
     void buildFirst() {
+        // сначала правила, которые раскрываются в один терминал
         for (auto& rule : G.rules) {
-            int i = 0;
-            if (rule.R[i].label == eps) ++i;
-            if (i >= rule.R.size()) continue; // todo check
-            if (std::islower(rule.R[i].label)) {
-                First[rule.L.label].insert(rule.R[i].label);
+            if (rule.R[0].label == eps) {
+                First[rule.L.label].insert(eps);
+                continue;
             }
+            if (std::islower(rule.R[0].label))
+                First[rule.L.label].insert(rule.R[0].label);
         }
 
         for (auto& rule : G.rules) {
-            int i = 0;
-            if (rule.R[i].label == eps) ++i;
-            if (i >= rule.R.size()) continue; // todo check
+            int pos = 0;
+            if (rule.R[pos].label == eps) ++pos;
+            if (pos >= rule.R.size()) continue;
+            if (rule.R.size() <= 1) continue; // уже проверили
 
-            if (std::isupper(rule.R[i].label)) {
-                if (First.count(rule.L.label)) {
-                    for (char c : First[rule.L.label])
-                        First[rule.L.label].insert(c);
+            if (std::islower(rule.R[pos].label)) {
+                First[rule.L.label].insert(rule.R[0].label);
+            } else {
+                for (char c : First[rule.R[pos].label]) {
+                    First[rule.L.label].insert(c == eps ? '$' : c);
                 }
+            }
+        }
+    }
+
+    void enclose(State* state) {
+        std::queue<std::pair<Config, bool>> Q;
+        for (int i = 0; i < state->kernel_size; ++i) {
+            Q.push({state->configs[i], true});
+        }
+
+        while (!Q.empty()) {
+            auto[cfg, is_kernel] = std::move(Q.front()); Q.pop();
+            auto metaterm = cfg.rule.R[cfg.dotPos];
+
+            if (!isNt(metaterm)) {
+                if (!is_kernel) {
+                    state->add(cfg.rule, cfg.oracles);
+                }
+            } else {
+                for (auto& rule : G.rules) {
+                    if (rule.L != metaterm) continue;
+                    std::vector<char> oracles;
+                    if (cfg.dotPos + 1 >= cfg.rule.R.size()) {
+                        oracles.push_back('$');
+                    } else {
+                        auto nmetaterm = cfg.rule.R[cfg.dotPos + 1];
+                        if (!isNt(nmetaterm)) {
+                            oracles.push_back(nmetaterm.label);
+                        } else {
+                            auto found = First[nmetaterm.label];
+                            oracles.reserve(found.size());
+                            for (auto c : found) {
+                                oracles.push_back(c);
+                            }
+                        }
+                    }
+                    Config newcfg(rule, std::move(oracles));
+                    Q.push({newcfg, false});
+                }
+            }
+        }
+    } // todo extend kernel
+
+    void step(std::queue<State*>& Q) {
+        auto state = Q.front(); Q.pop();
+        char c = 'a';
+        for (; c != 'Z' + 1; (c == 'z') ? c = 'A' : ++c) {
+            for (const auto& cfg : state->configs) {
+                if (cfg.rule.R.size() <= cfg.dotPos || cfg.rule.R[cfg.dotPos].label != c) {
+                    continue;
+                }
+
+                bool found = false;
+                State* node;
+                if (!state->go.count(c)) {
+                    node = new State(state);
+                    state->go[c] = node;
+                } else {
+                    node = state->go[c];
+                    ++node->kernel_size;
+                    found = true;
+                }
+
+                node->add(cfg);
+                ++(node->configs[node->configs.size() - 1].dotPos);
+                if (!found)
+                    Q.push(node);
             }
         }
     }
@@ -162,47 +247,41 @@ public:
         return std::isupper(t.label);
     }
 
-    /* State with first rule */
-    /* сканы сделаем как-нибудь потом (когда разберусь, как получать oracle) */
-    // разобрался, TODO
-    void enclose(State* state) {
-        auto& base_rule = state->configs[0].rule;
-
-        for (auto it : base_rule.nterms) {
-            parts::MetaTerm nT = base_rule.R[it];
-            for (auto& rule : G.rules) {
-                if (rule.L != nT) continue;
-                if (it + 1 >= base_rule.R.size()) {
-                    state->add(rule, state->configs[0].oracles);
-                } else if (!isNt(base_rule.R[it + 1])) {
-                    state->add(rule, {base_rule.R[it + 1].label});
-                } else {
-                    auto found = First[base_rule.R[it + 1].label];
-                    state->add(rule, std::vector<char>(found.begin(), found.end()));
-                }
-            }
-        }
-    }
-
     void fit(parts::Grammar&& grammar) {
         G = std::move(grammar);
         buildFirst();
-        auto* dfa = new State();
+
+        dfa = new State(nullptr, 1);
         dfa->add(G[0], {'$'});
         enclose(dfa);
+        std::queue<State*> Q; Q.push(dfa);
+        step(Q);
+
+        while (!Q.empty()) {
+            State* state = Q.front();
+            enclose(state);
+            step(Q);
+        }
+        int tmp = 0;
+    }
+
+    ~YAParser() {
+        // todo smart ptrs
     }
 };
 
 int main() {
     parts::Grammar G('S');
-//    G.add('S', "aB");
-//    G.add('B', "b");
-//    G.add('B', "bc");
+//    G.add('S', "aBd");
+//    G.add('S', "bB");
+//    G.add('B', "t");
+//    G.add('B', "C");
+//    G.add('C', "g");
+
     G.add('S', "aBd");
-    G.add('S', "bB");
+    G.add('S', "aT");
+    G.add('T', "c");
     G.add('B', "t");
-    G.add('B', "C");
-    G.add('C', "g");
 
     YAParser yap;
     yap.fit(std::move(G));
