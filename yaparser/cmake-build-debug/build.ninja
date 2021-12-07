@@ -74,7 +74,7 @@ build cmake_object_order_depends_target_yaparser: phony || CMakeFiles/yaparser.d
 
 build CMakeFiles/yaparser.dir/main.cpp.o: CXX_COMPILER__yaparser_Debug /home/h4zzkr/mipt/term3/FormalLangTasks/yaparser/main.cpp || cmake_object_order_depends_target_yaparser
   DEP_FILE = CMakeFiles/yaparser.dir/main.cpp.o.d
-  FLAGS = -g -std=gnu++17
+  FLAGS = -DDEBUG -g -std=gnu++17
   OBJECT_DIR = CMakeFiles/yaparser.dir
   OBJECT_FILE_DIR = CMakeFiles/yaparser.dir
 
@@ -87,7 +87,7 @@ build CMakeFiles/yaparser.dir/main.cpp.o: CXX_COMPILER__yaparser_Debug /home/h4z
 # Link the executable yaparser
 
 build yaparser: CXX_EXECUTABLE_LINKER__yaparser_Debug CMakeFiles/yaparser.dir/main.cpp.o
-  FLAGS = -g
+  FLAGS = -DDEBUG -g
   OBJECT_DIR = CMakeFiles/yaparser.dir
   POST_BUILD = :
   PRE_LINK = :
