@@ -96,7 +96,7 @@ class YAParser {
         const parts::Rule& rule;
         size_t size;
         size_t dotPos = 0;
-        std::vector<char> oracles;
+        std::unordered_set<char> oracles;
 
 #ifdef DEBUG
         std::string traceRule;
@@ -128,21 +128,31 @@ class YAParser {
 #endif
 
         Config(const parts::Rule& rule, char oracle): rule(rule) {
-            oracles.push_back(oracle);
+            oracles.insert(oracle);
             size = rule.R.size();
 #ifdef DEBUG
             makeTraceRule();
 #endif
         }
 
-        Config(const parts::Rule& rule, std::vector<char> oracles):
-                        rule(rule), oracles(std::move(oracles)) {
+        Config(const parts::Rule& rule, std::unordered_set<char>&& oracles):
+                                    rule(rule), oracles(std::move(oracles)) {
             size = rule.R.size();
 #ifdef DEBUG
             makeTraceRule();
 #endif
         }
+
+        Config(const parts::Rule& rule, const std::unordered_set<char>& oracles):
+                rule(rule), oracles(oracles) {
+            size = rule.R.size();
+#ifdef DEBUG
+            makeTraceRule();
+#endif
+        }
+
     };
+
     struct State {
         State* parent = nullptr;
         std::vector<Config> configs;
@@ -153,12 +163,22 @@ class YAParser {
         // первые kernel_size в configs отдаются под kernel
         size_t kernel_size = 1;
 
-        void add(const parts::Rule& rule, std::vector<char> oracles) {
-             configs.push_back(std::move(Config(rule, std::move(oracles))));
+
+// todo
+        void add(const parts::Rule& rule, std::unordered_set<char>&& oracles) {
+            configs.emplace_back(rule, std::move(oracles));
 #ifdef DEBUG
             configs.back().makeTraceRule();
 #endif
         }
+
+        void add(const parts::Rule& rule, const std::unordered_set<char>& oracles) {
+            configs.emplace_back(rule, oracles);
+#ifdef DEBUG
+            configs.back().makeTraceRule();
+#endif
+        }
+
 
         template <typename T>
         void add(T&& cfg) {
@@ -277,18 +297,17 @@ class YAParser {
             auto mt = cfg.rule.R[cfg.dotPos];
             if (!isNt(mt)) continue;
 
-            std::vector<char> oracles;
+            std::unordered_set<char> oracles;
             if (cfg.dotPos + 1 == cfg.rule.R.size()) {
-//                oracles.push_back('$');
                 auto found = Follow[cfg.rule.L.label];
-                oracles.insert(oracles.end(), found.begin(), found.end());
+                oracles.insert(found.begin(), found.end());
             } else {
                 auto nmt = cfg.rule.R[cfg.dotPos + 1];
                 if (isNt(nmt)) {
                     auto found = First[nmt.label];
-                    oracles.insert(oracles.end(), found.begin(), found.end());
+                    oracles.insert(found.begin(), found.end());
                 } else {
-                    oracles.push_back(nmt.label);
+                    oracles.insert(nmt.label);
                 }
             }
 
@@ -296,6 +315,10 @@ class YAParser {
                 if (rule.L != mt) continue;
                 Q.push({Config(rule, oracles), false});
             }
+        }
+
+        while (true) {
+            break;
         }
 
     }
