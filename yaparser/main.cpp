@@ -264,6 +264,35 @@
 //            }
 //        }
 //    }
+
+//void step(std::queue<State*>& Q) {
+//    auto state = Q.front(); Q.pop();
+//    char c = 'a';
+//    for (; c != 'Z' + 1; (c == 'z') ? c = 'A' : ++c) {
+//        for (auto cfg : state->configs) {
+//            if (cfg.rule.R.size() <= cfg.dotPos || cfg.rule.R[cfg.dotPos].label != c) {
+//                continue;
+//            }
+//
+//            bool found = false;
+//            State* node;
+//            if (!state->go.count(c)) {
+//                node = new State(state);
+//                state->go[c] = node;
+//            } else {
+//                node = state->go[c];
+//                ++node->kernel_size;
+//                found = true;
+//            }
+//
+//            ++(cfg.dotPos);
+//            node->add(std::move(cfg));
+//            if (!found)
+//                Q.push(node);
+//        }
+//    }
+//}
+
 //
 //public:
 //    YAParser() = default;
@@ -307,11 +336,8 @@ int main() {
     G.add("S -> x");
     G.add("T -> T T");
     G.add("T -> k");
-//    G.add("S -> C C");
-//    G.add("C -> c C");
-//    G.add("C -> d");
-    G.buildFirst();
-    G.buildFollow();
+
+
     YAParser parser;
     parser.fit(G);
     int tmp = 0;

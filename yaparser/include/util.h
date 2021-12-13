@@ -1,7 +1,6 @@
 //
 // Created by h4zzkr on 08.12.2021.
 //
-
 #ifndef YAPARSER_UTIL_H
 #define YAPARSER_UTIL_H
 
@@ -102,6 +101,20 @@ private:
         return Token::isNterm(tkn);
     }
 
+    std::string tkn2str(const Token& tkn) const {
+        if (isNt(tkn)) {
+            auto found = nterminals.find(tkn);
+            if (found != nterminals.end())
+                return found->second;
+            return "DROP_TABLE KVM_BRS";
+        } else {
+            auto found = terminals.find(tkn);
+            if (found != terminals.end())
+                return found->second;
+            return "DROP_TABLE KVM_BRS";
+        }
+    }
+
 public:
     Grammar() = default;
     Grammar(std::string start): startNterminal(std::move(start)) {
@@ -185,5 +198,30 @@ public:
         Follow[0].insert(eof_t);
     }
 };
+
+namespace hashing {
+    template <typename element_hash>
+    struct sequence_hasher {
+        template<class T>
+        size_t operator()(const T& container) const {
+            size_t prime_ = 3, hsh = 0;
+            for (const auto & i : container) {
+                hsh += element_hash{}(i) * prime_;
+                prime_ *= prime_;
+            }
+            return hsh;
+        }
+    };
+
+    template <typename element_hash>
+    struct sequence_equal {
+        template<class T>
+        bool operator()(const T& container1, const T& container2) const {
+            return sequence_hasher<element_hash>{}(container1) ==
+                   sequence_hasher<element_hash>{}(container2);
+        }
+    };
+
+}
 
 #endif //YAPARSER_UTIL_H
