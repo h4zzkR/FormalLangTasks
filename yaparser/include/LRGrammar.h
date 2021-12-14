@@ -1,9 +1,11 @@
 //
-// Created by h4zzkr on 08.12.2021.
+// Created by h4zzkr on 13.12.2021.
 //
-#ifndef YAPARSER_UTIL_H
-#define YAPARSER_UTIL_H
 
+#ifndef YAPARSER_LRGRAMMAR_H
+#define YAPARSER_LRGRAMMAR_H
+
+#pragma once
 #include <iostream>
 #include <utility>
 #include <string>
@@ -16,21 +18,24 @@
 #include <algorithm>
 #include <iterator>
 #include <sstream>
-
 #include <unordered_map>
-#include <unordered_set> // change on prod
-
+#include <unordered_set>
 #include <queue>
+#include "LRUtil.h"
 
-class Rule;
 class YAParser;
+class Item;
+class State;
 
 class Grammar {
     static const size_t tkn_border = 2147483647; // prime
 
     friend YAParser;
+    friend Item;
+    friend State;
+
     struct Token {
-        size_t label;
+        size_t label{};
 #ifdef DEBUG
         std::string trace;
 #endif
@@ -46,9 +51,6 @@ class Grammar {
         static bool isNterm(const Token& tkn) {
             return tkn.label < tkn_border;
         }
-        static bool isStart(const Token& tkn) {
-            return tkn.label == 0;
-        }
         Token() = default;
         Token(size_t label): label(label) {}
         explicit Token(const std::string& label, bool isStart = false, bool isNterm = false):
@@ -58,17 +60,20 @@ class Grammar {
 #endif
         }
         bool operator==(const Token& oth) const {
-            return isNterm(*this) && isNterm(oth) && (label == oth.label);
+            return (isNterm(*this) == isNterm(oth)) && (label == oth.label);
         }
         bool operator!=(const Token& oth) const {
             return !(*this == oth);
         }
     };
+
+private:
     struct Rule {
+        size_t rule_id = 0;
         Token prefix;
         std::vector<Token> suffix;
         Rule() = default;
-        Rule(Token pref, std::vector<Token>&& suff): prefix(pref), suffix(std::move(suff)) {}
+        Rule(Token pref, std::vector<Token>&& suff): prefix(std::move(pref)), suffix(std::move(suff)) {}
         Rule(const std::string& pref, const std::vector<std::string>& suff, bool init = false) {
             prefix = Token(pref, init, true);
             for (auto& s : suff) {
@@ -78,9 +83,8 @@ class Grammar {
 
             }
         }
-        size_t getSize() const { return suffix.size(); }
+        [[nodiscard]] size_t getSize() const { return suffix.size(); }
     };
-private:
 
     struct hasher {
         bool operator()(const Token& tkn) const { return tkn.label; }
@@ -99,6 +103,10 @@ private:
 
     static bool isNt(const Token& tkn) {
         return Token::isNterm(tkn);
+    }
+
+    static bool isStart(const Token& tkn) {
+        return tkn.label == 0;
     }
 
     std::string tkn2str(const Token& tkn) const {
@@ -129,12 +137,10 @@ public:
         std::string del = " -> ";
         size_t idx = rule.find(del);
         auto pref = rule.substr(0, idx);
-        std::stringstream ss(rule.substr(idx + del.size(), rule.size()));
-        std::istream_iterator<std::string> begin(ss);
-        std::istream_iterator<std::string> end;
-        std::vector<std::string> suff(begin, end);
-        std::copy(suff.begin(), suff.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
+        std::vector<std::string> suff = split(rule.substr(idx + del.size(), rule.size()));
         rules.emplace_back(pref, suff, init);
+
+        rules.back().rule_id = rules.size() - 1;
 
         nterminals[{rules.back().prefix}] = pref;
         for (int i = 0; i < suff.size(); ++i) {
@@ -144,6 +150,7 @@ public:
                 terminals[{rules.back().suffix[i]}] = suff[i];
         }
     }
+
     Rule& operator[](size_t idx) {
         return rules[idx];
     }
@@ -153,8 +160,6 @@ public:
             bool changed = false;
             for (auto &rule: rules) {
                 int pos = 0;
-//                if (rule.R[pos].label == eps) ++pos;
-//                if (pos >= rule.suffix.size()) continue;
                 size_t size = First[rule.prefix].size();
                 if (!isNt(rule.suffix[pos]))
                     First[rule.prefix].insert(rule.suffix[pos]);
@@ -170,13 +175,14 @@ public:
         }
     }
     void buildFollow() {
+        Follow[0].insert(eof_t);
         while (true) {
             bool changed = false;
             for (auto &rule: rules) {
                 for (int pos = 0; pos < rule.getSize(); ++pos) {
                     auto &mt = rule.suffix[pos];
-                    size_t size = Follow[mt].size();
                     if (!isNt(mt)) continue;
+                    size_t size = Follow[mt].size();
                     if (pos == rule.getSize() - 1) {
                         auto found = Follow[rule.prefix];
                         Follow[mt.label].insert(found.begin(), found.end());
@@ -195,33 +201,7 @@ public:
             }
             if (!changed) break;
         }
-        Follow[0].insert(eof_t);
     }
 };
 
-namespace hashing {
-    template <typename element_hash>
-    struct sequence_hasher {
-        template<class T>
-        size_t operator()(const T& container) const {
-            size_t prime_ = 3, hsh = 0;
-            for (const auto & i : container) {
-                hsh += element_hash{}(i) * prime_;
-                prime_ *= prime_;
-            }
-            return hsh;
-        }
-    };
-
-    template <typename element_hash>
-    struct sequence_equal {
-        template<class T>
-        bool operator()(const T& container1, const T& container2) const {
-            return sequence_hasher<element_hash>{}(container1) ==
-                   sequence_hasher<element_hash>{}(container2);
-        }
-    };
-
-}
-
-#endif //YAPARSER_UTIL_H
+#endif //YAPARSER_LRGRAMMAR_H

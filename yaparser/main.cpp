@@ -330,15 +330,28 @@
 //};
 
 int main() {
-    Grammar G("S");
-    G.add("S -> S S");
-    G.add("S -> T c");
-    G.add("S -> x");
-    G.add("T -> T T");
-    G.add("T -> k");
+    Grammar G("START");
+//    G.add("S -> S S");
+//    G.add("S -> T c");
+//    G.add("S -> x");
+//    G.add("T -> T T");
+//    G.add("T -> k");
 
+//    G.add("S -> a B");
+//    G.add("B -> b");
+//    G.add("B -> b c");
+
+    G.add("START -> ADD");
+    G.add("ADD -> ADD + FACTOR");
+    G.add("ADD -> FACTOR");
+    G.add("FACTOR -> TERM");
+    G.add("TERM -> ( ADD )");
+    G.add("TERM -> a");
+    G.add("TERM -> b");
 
     YAParser parser;
     parser.fit(G);
+    bool out = parser.predict("( a )");
+    std::cout << out;
     int tmp = 0;
 }
