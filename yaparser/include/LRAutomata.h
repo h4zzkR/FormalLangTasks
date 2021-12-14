@@ -211,7 +211,6 @@ protected:
     }
 
     void detachAux() {
-        decltype(grammar.Follow) prey1 = std::move(grammar.Follow);
         decltype(grammar.First) prey2 = std::move(grammar.First);
     }
 
@@ -225,7 +224,6 @@ public:
     void fit(Grammar g) {
         grammar = std::move(g);
         grammar.buildFirst();
-        grammar.buildFollow();
         buildAutomata();
         buildAction();
         detachAux();

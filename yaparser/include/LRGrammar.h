@@ -99,7 +99,6 @@ private:
     std::string startNterminal, eof = "$";
     Token eof_t, sof_t;
     std::unordered_map<Token, std::unordered_set<Token, hasher, key_equal>, hasher, key_equal> First;
-    std::unordered_map<Token, std::unordered_set<Token, hasher, key_equal>, hasher, key_equal> Follow;
 
     static bool isNt(const Token& tkn) {
         return Token::isNterm(tkn);
@@ -169,34 +168,6 @@ public:
                 }
                 if (size != First[rule.prefix].size())
                     changed = true;
-            }
-            if (!changed) break;
-        }
-    }
-    void buildFollow() {
-        Follow[0].insert(eof_t);
-        while (true) {
-            bool changed = false;
-            for (auto &rule: rules) {
-                for (int pos = 0; pos < rule.getSize(); ++pos) {
-                    auto &mt = rule.suffix[pos];
-                    if (!isNt(mt)) continue;
-                    size_t size = Follow[mt].size();
-                    if (pos == rule.getSize() - 1) { // A   = ... . R
-                        auto found = Follow[rule.prefix];
-                        Follow[mt.label].insert(found.begin(), found.end());
-                    } else {
-                        auto &nmt = rule.suffix[pos + 1];
-                        if (!isNt(nmt))
-                            Follow[mt].insert(nmt);
-                        else {
-                            auto found = First[nmt];
-                            Follow[mt].insert(found.begin(), found.end());
-                        }
-                    }
-                    if (size != Follow[mt].size())
-                        changed = true;
-                }
             }
             if (!changed) break;
         }
