@@ -167,7 +167,6 @@ public:
                     auto found = First[rule.suffix[pos]];
                     First[rule.prefix].insert(found.begin(), found.end());
                 }
-
                 if (size != First[rule.prefix].size())
                     changed = true;
             }
@@ -183,7 +182,7 @@ public:
                     auto &mt = rule.suffix[pos];
                     if (!isNt(mt)) continue;
                     size_t size = Follow[mt].size();
-                    if (pos == rule.getSize() - 1) {
+                    if (pos == rule.getSize() - 1) { // A   = ... . R
                         auto found = Follow[rule.prefix];
                         Follow[mt.label].insert(found.begin(), found.end());
                     } else {

@@ -27,14 +27,14 @@ namespace hashing {
         }
     };
 
-    template <typename T>
+    template <typename T, typename Flag = std::true_type>
     struct item_hasher {
-        size_t operator()(const T& it) const { return it.hash(true); }
+        size_t operator()(const T& it) const { return it.hash(Flag()); }
     };
-    template <typename T>
+    template <typename T, typename Flag = std::true_type>
     struct item_equal {
         bool operator()(const T& it1, const T& it2) const {
-            return it1.hash(true) == it2.hash(true);
+            return it1.hash(Flag()) == it2.hash(Flag());
         }
     };
 }

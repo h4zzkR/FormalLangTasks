@@ -79,12 +79,13 @@ protected:
     };
 
     using automata_item_type = std::unordered_map<Grammar::Token, size_t, Grammar::hasher, Grammar::key_equal>;
-    using kernels_list = std::unordered_map<std::unordered_set<Item, item_hasher<Item>, item_equal<Item>>, size_t,
-            hashing::sequence_hasher<item_hasher<Item>>, hashing::sequence_equal<item_hasher<Item>>>;
+    using kernels_list = std::unordered_map<std::unordered_set<Item, item_hasher<Item, std::false_type>, item_equal<Item, std::false_type>>, size_t,
+            sequence_hasher<item_hasher<Item, std::false_type>>, sequence_equal<item_hasher<Item, std::false_type>>>;
 
     void updateAutomata(size_t state_id, kernels_list &list) {
         /// # FIND KERNELS FOR ALL AVIABLE TRANSITIONS # ///
-        std::unordered_map<Grammar::Token, std::unordered_set<Item, item_hasher<Item>, item_equal<Item>>, Grammar::hasher, Grammar::key_equal> kernels;
+        std::unordered_map<Grammar::Token, std::unordered_set<Item, item_hasher<Item, std::false_type>,
+                item_equal<Item, std::false_type>>, Grammar::hasher, Grammar::key_equal> kernels;
         for (auto item: automata[state_id].first.items) {
             if (item.dotPtr == item.getSize()) continue;
             auto transit = item.getCur();
@@ -104,19 +105,30 @@ protected:
             automata[state_id].second[tkn] = automata.size();
             list.insert({kernel, automata.size()});
             automata.emplace_back(
-                    State(grammar, std::move(kernel), state_id), automata_item_type{}
+                    State(grammar, extractItems(kernel), state_id), automata_item_type{}
             );
             updateAutomata(automata.size() - 1, list);
         }
     }
+
+    template <typename T>
+    std::vector<Item> extractItems(T& kernel) {
+        std::vector<Item> vec;
+        vec.reserve(kernel.size());
+        for (auto it = kernel.begin(); it != kernel.end(); ) {
+            vec.push_back(std::move(kernel.extract(it++).value()));
+        }
+        return vec;
+    }
+
     void buildAutomata() {
         /// # INIT AUTOMATA WITH STARTER RULE # ///
-        kernels_list list;
-        std::unordered_set<Item, item_hasher<Item>, item_equal<Item>> kernel;
+        kernels_list list; // отслеживать дубликаты
+        std::unordered_set<Item, item_hasher<Item, std::false_type>, item_equal<Item, std::false_type>> kernel;
         kernel.emplace(Grammar::Rule(Grammar::Token(0), {grammar.sof_t}), grammar.eof_t);
         list.insert({kernel, 0});
-        automata.emplace_back(State(grammar, std::move(kernel), -1), automata_item_type{});
 
+        automata.emplace_back(State(grammar, extractItems(kernel), -1), automata_item_type{});
         /// # START RECURSIVE BUILDING # ///
         updateAutomata(0, list);
     }
@@ -216,8 +228,8 @@ public:
         grammar.buildFollow();
         buildAutomata();
         buildAction();
-//        detachAux();
-    }
+        detachAux();
+   }
 
     bool predict(const std::string& word) {
         bool out = parse(word);

@@ -98,6 +98,21 @@ struct State {
 
     using lookahead_type = std::unordered_set<Grammar::Token, Grammar::hasher, Grammar::key_equal>;
 
+    bool updateItems(const Item& item, Grammar& grammar) {
+        auto found = items.find(item);
+        if (found != items.end()) {
+            auto cpy = *found;
+            items.erase(found);
+            cpy.lookahead.merge(lookahead_type(item.lookahead));
+#ifdef DEBUG
+            cpy.makeTraceRule(grammar);
+#endif
+            items.insert(std::move(cpy));
+            return true;
+        }
+        return false;
+    }
+
     void closure(Grammar& grammar) {
         std::queue<std::pair<Item, bool>> Q;
         for (auto& item : items)
@@ -105,56 +120,34 @@ struct State {
 
         while (!Q.empty()) {
             auto[item, is_kernel] = std::move(Q.front()); Q.pop();
+
             if (!is_kernel) {
-                auto found = items.find(item);
-                if (found != items.end()) {
-                    // дополнить lookahead, если в items уже есть подобное правило
-                    auto cpy = *found;
-                    items.erase(found);
-                    cpy.lookahead.merge(lookahead_type(item.lookahead));
-#ifdef DEBUG
-                    cpy.makeTraceRule(grammar);
-#endif
-                    items.insert(std::move(cpy));
+                bool is_found = updateItems(item, grammar);
+                if (!is_found) items.insert(item);
+            }
+
+            lookahead_type lookahead;
+            if (item.dotPtr == item.getSize() || !Grammar::isNt(item.getCur())) continue;
+            if (item.dotPtr + 1 == item.getSize()) {
+                lookahead = item.lookahead;
+            } else {
+                auto ntkn = item.getTkn(item.dotPtr + 1);
+                if (Grammar::isNt(ntkn)) {
+                    auto found = grammar.First[ntkn];
+                    lookahead.insert(found.begin(), found.end());
                 } else {
-                    items.insert(item);
+                    lookahead.insert(ntkn);
                 }
             }
 
-            if (item.dotPtr != item.getSize() && Grammar::isNt(item.getCur())) {
-                lookahead_type lookahead;
-                if (item.dotPtr == item.getSize() - 1) {
-                    auto found = grammar.Follow[item.rule.prefix];
-                    lookahead.insert(found.begin(), found.end());
-                } else {
-                    // todo epsilon
-                    if (!Grammar::isNt(item.getTkn(item.dotPtr + 1))) {
-                        lookahead.insert(item.getTkn(item.dotPtr + 1));
-                    } else {
-//                        auto found = grammar.First[item.getTkn(item.dotPtr + 1)];
-                        auto found = grammar.First[item.getCur()];
-                        lookahead.insert(found.begin(), found.end());
-                    }
-                }
-                for (auto& rule : grammar.rules) {
-                    if (rule.prefix != item.getCur()) continue;
-                    Item nitem(rule, lookahead);
+            for (auto& rule : grammar.rules) {
+                if (rule.prefix != item.getCur()) continue;
+                Item nitem(rule, lookahead);
 #ifdef DEBUG
-                    nitem.makeTraceRule(grammar);
+                nitem.makeTraceRule(grammar);
 #endif
-                    auto found = items.find(nitem);
-                    if (found == items.end())
-                        Q.push({std::move(nitem), false});
-                    else {
-                        auto cpy = *found;
-                        items.erase(found);
-                        cpy.lookahead.merge(lookahead_type(lookahead));
-#ifdef DEBUG
-                        cpy.makeTraceRule(grammar);
-#endif
-                        items.insert(std::move(cpy));
-                    }
-                }
+                bool is_found = updateItems(nitem, grammar);
+                if (!is_found) Q.push({std::move(nitem), false});
             }
         }
     }
