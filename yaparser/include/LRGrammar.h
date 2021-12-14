@@ -125,7 +125,7 @@ private:
 public:
     Grammar() = default;
     Grammar(std::string start): startNterminal(std::move(start)) {
-        add("START -> " + startNterminal, true);
+        add("__START__ -> " + startNterminal, true);
         sof_t = Token(startNterminal, false, true);
         eof_t = Token(eof, false, false);
         terminals[eof_t] = eof;

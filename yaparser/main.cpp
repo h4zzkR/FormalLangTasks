@@ -351,7 +351,8 @@ int main() {
 
     YAParser parser;
     parser.fit(G);
-    bool out = parser.predict("( + )");
-    std::cout << out;
+    bool out = parser.predict("( a + b + b + a ) + ( a + b )");
+    bool out2 = parser.predict("( a + b + b + a ) + ( a + b ) +");
+    std::cout << out << ' ' << out2;
     int tmp = 0;
 }

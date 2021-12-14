@@ -40,16 +40,10 @@ protected:
 
             size_t autom_state_id = 0;
             Grammar::Token tkn{0};
-
-            bool isT() {
-                if (tkn.label == 0)
-                    return false;
-                return !Grammar::isNt(tkn);
-            }
-            bool isTkn() {
+            bool isTkn() const {
                 return (tkn.label != 0);
             }
-            bool isNull() { return tkn.label == 0; }
+            bool isNull() const { return tkn.label == 0; }
 
             StackItem(size_t id, Grammar::Token tkn): autom_state_id(id), tkn(std::move(tkn)) {}
         };
@@ -176,7 +170,7 @@ protected:
         for (auto it = splitted.rbegin(); it != splitted.rend(); ++it)
             trace.input.emplace_back(*it);
 
-        while (1) {
+        while (true) {
             auto top = trace.stack.top();
             auto tkn = trace.input.back();
             // there is no such transition
@@ -214,8 +208,8 @@ protected:
         decltype(grammar.First) prey2 = std::move(grammar.First);
     }
 
-    std::vector<std::pair<State, automata_item_type>> automata;
     Trace trace;
+    std::vector<std::pair<State, automata_item_type>> automata;
     std::vector<std::unordered_map<Grammar::Token, ActionLabel, Grammar::hasher, Grammar::key_equal>> action;
 
 public:
@@ -236,9 +230,3 @@ public:
 };
 
 #endif //YAPARSER_LRAUTOMATA_H
-
-
-
-
-
-
