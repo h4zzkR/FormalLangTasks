@@ -1,37 +1,17 @@
-#ifndef YAPARSER_LRAUTOMATA_H
-#define YAPARSER_LRAUTOMATA_H
+#ifndef YAPARSER_LRPARSER_H
+#define YAPARSER_LRPARSER_H
 
 #include <stack>
-#include "LRGrammar.h"
-#include "LRUtil.h"
-#include "LRState.h"
+#include "lr1/LRGrammar.h"
+#include "lr1/LRUtil.h"
+#include "lr1/LRState.h"
+#include "Parser.h"
 
 using namespace hashing;
 
-//struct ActionLabel {
-//    virtual ~ActionLabel() {}
-//};
-//
-//struct ShiftLabel: public ActionLabel {
-//    size_t state_id;
-//    explicit ShiftLabel(size_t state_id): state_id(state_id) {}
-//    ~ShiftLabel() override = default;
-//};
-//struct ReduceLabel: public ActionLabel {
-//    size_t state_id;
-//    explicit ReduceLabel(size_t state_id): state_id(state_id) {}
-//    ~ReduceLabel() override = default;
-//};
-//struct AcceptLabel: public ActionLabel {
-//    ~AcceptLabel() override = default;
-//};
-//struct ConflictLabel: public ActionLabel {
-//    ~ConflictLabel() override = default;
-//};
-
-class YAParser {
+class LRParser: public YAParser {
 protected:
-    Grammar grammar;
+    LRGrammar grammar;
 
     struct Trace {
         struct StackItem {
@@ -48,7 +28,7 @@ protected:
             StackItem(size_t id, Grammar::Token tkn): autom_state_id(id), tkn(std::move(tkn)) {}
         };
 
-        std::stack<StackItem> stack;
+        std::stack<StackItem> stack = {};
         std::vector<Grammar::Token> input;
         ActionLabel action_now{};
 
@@ -136,27 +116,29 @@ protected:
                     for (auto& lookahead_item : item.lookahead) {
                         bool used = action[i].count(lookahead_item);
                         if (lookahead_item == grammar.eof_t && item.isStart()) {
-                            if (used && action[i][lookahead_item].type != 'a')
+                            if (used && action[i][lookahead_item] != ActionLabel('a'))
                                 action[i][lookahead_item].type = 'c';
                             else
                                 action[i][lookahead_item] = ActionLabel('a');
                         } else {
-                            if (used && action[i][lookahead_item].type != 'r')
+                            auto newlabel = ActionLabel('r', item.getRuleId());
+                            if (used && action[i][lookahead_item] != newlabel)
                                 action[i][lookahead_item].type = 'c';
                             else
-                                action[i][lookahead_item] = ActionLabel('r', item.getRuleId());
+                                action[i][lookahead_item] = newlabel;
                         }
                     }
                 } else {
                     auto tkn = item.getCur();
                     if (Grammar::isNt(tkn)) continue;
                     bool used = action[i].count(tkn);
-                    auto trace = item.traceRule;
-                    if (used && action[i][tkn].type != 's')
+                    auto& next = automata[i].second[tkn];
+                    auto newlabel = ActionLabel('s', next);
+
+                    if (used && action[i][tkn] != newlabel)
                         action[i][tkn].type = 'c';
                     else {
-                        auto& next = automata[i].second[tkn];
-                        action[i][tkn] = ActionLabel('s', next);
+                        action[i][tkn] = newlabel;
                     }
                 }
             }
@@ -199,34 +181,50 @@ protected:
             } else if (act.type == 'a')
                 return true;
             else if (act.type == 'c') {
-                throw std::runtime_error("Conflict: grammar is ambigious");
+                throw parts::ConflictGrammar();
             }
         }
     }
 
-    void detachAux() {
-        decltype(grammar.First) prey2 = std::move(grammar.First);
+    void detachGrammar() {
+        decltype(grammar) prey = std::move(grammar);
+    }
+
+    void detachAux(bool complete = false) {
+        if (complete) {
+            detachTrace();
+            decltype(grammar) prey = std::move(grammar);
+        } else
+            decltype(grammar.First) prey2 = std::move(grammar.First);
+    }
+    void detachTrace() {
+        decltype(trace) prey = std::move(trace);
+        trace = Trace();
     }
 
     Trace trace;
     std::vector<std::pair<State, automata_item_type>> automata;
     std::vector<std::unordered_map<Grammar::Token, ActionLabel, Grammar::hasher, Grammar::key_equal>> action;
 
-public:
-    YAParser() = default;
+//#ifdef DEBUG
+//    FRIEND_TEST(TestCases1, CorrectWork);
+//#endif
 
-    void fit(Grammar g) {
-        grammar = std::move(g);
+public:
+    LRParser() = default;
+    void fit(const Grammar& g) override {
+        grammar = LRGrammar(g);
         grammar.buildFirst();
         buildAutomata();
         buildAction();
         detachAux();
    }
 
-    bool predict(const std::string& word) {
+    bool predict(const std::string& word) override {
         bool out = parse(word);
+        detachTrace();
         return out;
     }
 };
 
-#endif //YAPARSER_LRAUTOMATA_H
+#endif //YAPARSER_LRPARSER_H

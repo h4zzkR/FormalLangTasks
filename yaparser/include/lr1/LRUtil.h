@@ -1,8 +1,7 @@
-//
-// Created by h4zzkr on 08.12.2021.
-//
 #ifndef YAPARSER_LRUTIL_H
 #define YAPARSER_LRUTIL_H
+
+#include <exception>
 
 namespace hashing {
     template <typename element_hash>
@@ -38,6 +37,23 @@ namespace hashing {
         }
     };
 }
+namespace parts {
+    struct TokenizeError : public std::exception {
+        const char * what() const throw () {
+            return "";
+        }
+    };
+    struct ConflictGrammar : public std::exception {
+        const char * what() const throw () {
+            return "Grammar is ambigious";
+        }
+    };
+    struct WrongRule : public std::exception {
+        const char * what() const throw () {
+            return "";
+        }
+    };
+}
 
 /*
  * s{i} - shift on i state
@@ -49,6 +65,12 @@ struct ActionLabel {
     char type;
     size_t item_id;
     ActionLabel() = default;
+    bool operator==(const ActionLabel& oth) const {
+        return type == oth.type && item_id == oth.item_id;
+    }
+    bool operator!=(const ActionLabel& oth) const {
+        return !(*this == oth);
+    }
     explicit ActionLabel(char type, size_t state_id = -1): type(type), item_id(state_id) {}
 };
 

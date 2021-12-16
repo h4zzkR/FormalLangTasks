@@ -1,9 +1,9 @@
-//
-// Created by h4zzkr on 13.12.2021.
-//
-
 #ifndef YAPARSER_LRGRAMMAR_H
 #define YAPARSER_LRGRAMMAR_H
+
+#ifdef DEBUG
+//#include "gtest/gtest_prod.h"
+#endif
 
 #pragma once
 #include <iostream>
@@ -23,18 +23,13 @@
 #include <queue>
 #include "LRUtil.h"
 
-class YAParser;
+class LRParser;
 class Item;
 class State;
 
-class Grammar {
-    static const size_t tkn_border = 2147483647; // prime
-
-    friend YAParser;
-    friend Item;
-    friend State;
-
+struct Grammar {
     struct Token {
+        static const size_t tkn_border = 2147483647; // prime
         size_t label{};
 #ifdef DEBUG
         std::string trace;
@@ -66,8 +61,6 @@ class Grammar {
             return !(*this == oth);
         }
     };
-
-private:
     struct Rule {
         size_t rule_id = 0;
         Token prefix;
@@ -85,7 +78,6 @@ private:
         }
         [[nodiscard]] size_t getSize() const { return suffix.size(); }
     };
-
     struct hasher {
         bool operator()(const Token& tkn) const { return tkn.label; }
     };
@@ -98,7 +90,6 @@ private:
     std::unordered_map<Token, std::string, hasher, key_equal> nterminals;
     std::string startNterminal, eof = "$";
     Token eof_t, sof_t;
-    std::unordered_map<Token, std::unordered_set<Token, hasher, key_equal>, hasher, key_equal> First;
 
     static bool isNt(const Token& tkn) {
         return Token::isNterm(tkn);
@@ -113,28 +104,34 @@ private:
             auto found = nterminals.find(tkn);
             if (found != nterminals.end())
                 return found->second;
-            return "DROP_TABLE KVM_BRS";
+            throw parts::TokenizeError();
         } else {
             auto found = terminals.find(tkn);
             if (found != terminals.end())
                 return found->second;
-            return "DROP_TABLE KVM_BRS";
+            throw parts::TokenizeError();
         }
     }
 
-public:
     Grammar() = default;
-    Grammar(std::string start): startNterminal(std::move(start)) {
+    Grammar(const Grammar& g) = default;
+    Grammar(Grammar&& g) = default;
+    Grammar& operator=(Grammar&& g) = default;
+    explicit Grammar(std::string start): startNterminal(std::move(start)) {
         add("__START__ -> " + startNterminal, true);
         sof_t = Token(startNterminal, false, true);
         eof_t = Token(eof, false, false);
         terminals[eof_t] = eof;
     }
-    /* Non terminals are in uppercase */
+    /* Non-terminals are in uppercase */
     void add(const std::string& rule, bool init = false) {
         /* S -> aba mfdfm SS df */
         std::string del = " -> ";
         size_t idx = rule.find(del);
+
+        if (idx == std::string::npos)
+            throw parts::WrongRule();
+
         auto pref = rule.substr(0, idx);
         std::vector<std::string> suff = split(rule.substr(idx + del.size(), rule.size()));
         rules.emplace_back(pref, suff, init);
@@ -153,6 +150,16 @@ public:
     Rule& operator[](size_t idx) {
         return rules[idx];
     }
+};
+
+class LRGrammar: public Grammar {
+    friend LRParser;
+    friend Item;
+    friend State;
+
+    std::unordered_map<Token, std::unordered_set<Token, hasher, key_equal>, hasher, key_equal> First;
+    using Grammar::Grammar;
+
     void buildFirst() {
         // transitive closure
         while (true) {
@@ -172,6 +179,13 @@ public:
             if (!changed) break;
         }
     }
+
+public:
+
+    LRGrammar& operator=(LRGrammar&& g) = default;
+    LRGrammar(const LRGrammar& g): Grammar(g) {}
+    explicit LRGrammar(const Grammar& g): Grammar(g) {}
+    explicit LRGrammar(Grammar&& g): Grammar(g) {}
 };
 
 #endif //YAPARSER_LRGRAMMAR_H

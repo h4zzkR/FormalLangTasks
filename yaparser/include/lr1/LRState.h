@@ -10,13 +10,13 @@
 using namespace hashing;
 
 struct Item {
-    std::unordered_set<Grammar::Token, Grammar::hasher, Grammar::key_equal> lookahead;
-    Grammar::Rule rule;
+    std::unordered_set<LRGrammar::Token, LRGrammar::hasher, LRGrammar::key_equal> lookahead;
+    LRGrammar::Rule rule;
     size_t dotPtr = 0;
 
 #ifdef DEBUG
     std::string traceRule;
-    void makeTraceRule(const Grammar& grammar) {
+    void makeTraceRule(const LRGrammar& grammar) {
         traceRule.resize(0);
         traceRule.reserve(lookahead.size() * 2 + rule.suffix.size());
         traceRule.append(grammar.tkn2str(rule.prefix));
@@ -64,7 +64,7 @@ struct Item {
         }
         hsh ^= hsh_lookahead_item;
         hsh ^= dotPtr;
-        hsh %= Grammar::tkn_border;
+        hsh %= LRGrammar::Token::tkn_border;
 
         return hsh;
     }
@@ -72,22 +72,22 @@ struct Item {
     size_t getSize() const { return rule.getSize(); }
     size_t getRuleId() const { return rule.rule_id; }
     bool isStart() const {
-        return Grammar::isStart(rule.prefix);
+        return LRGrammar::isStart(rule.prefix);
     }
-    Grammar::Token getCur() const {
+    LRGrammar::Token getCur() const {
         if (dotPtr == rule.getSize())
             return rule.prefix;
         return rule.suffix[dotPtr];
     }
-    Grammar::Token getPref() const {
+    LRGrammar::Token getPref() const {
         return rule.prefix;
     }
-    Grammar::Token getTkn(size_t ptr) const {
+    LRGrammar::Token getTkn(size_t ptr) const {
         return rule.suffix[ptr];
     }
-    Item(Grammar::Rule rule, decltype(lookahead) lookahead):
+    Item(LRGrammar::Rule rule, decltype(lookahead) lookahead):
             rule(std::move(rule)), lookahead(std::move(lookahead)) {}
-    Item(Grammar::Rule rule, const Grammar::Token& tkn): rule(std::move(rule)) {
+    Item(LRGrammar::Rule rule, const LRGrammar::Token& tkn): rule(std::move(rule)) {
         lookahead.insert(tkn);
     }
 };
@@ -96,9 +96,9 @@ struct State {
     size_t parent_id = -1;
     std::unordered_set<Item, item_hasher<Item>, item_equal<Item>> items;
 
-    using lookahead_type = std::unordered_set<Grammar::Token, Grammar::hasher, Grammar::key_equal>;
+    using lookahead_type = std::unordered_set<LRGrammar::Token, LRGrammar::hasher, LRGrammar::key_equal>;
 
-    bool updateItems(const Item& item, Grammar& grammar) {
+    bool updateItems(const Item& item, LRGrammar& grammar) {
         auto found = items.find(item);
         if (found != items.end()) {
             auto cpy = *found;
@@ -113,7 +113,7 @@ struct State {
         return false;
     }
 
-    void closure(Grammar& grammar) {
+    void closure(LRGrammar& grammar) {
         std::queue<std::pair<Item, bool>> Q;
         for (auto& item : items)
             Q.push({item, true});
@@ -127,12 +127,12 @@ struct State {
             }
 
             lookahead_type lookahead;
-            if (item.dotPtr == item.getSize() || !Grammar::isNt(item.getCur())) continue;
+            if (item.dotPtr == item.getSize() || !LRGrammar::isNt(item.getCur())) continue;
             if (item.dotPtr + 1 == item.getSize()) {
                 lookahead = item.lookahead;
             } else {
                 auto ntkn = item.getTkn(item.dotPtr + 1);
-                if (Grammar::isNt(ntkn)) {
+                if (LRGrammar::isNt(ntkn)) {
                     auto found = grammar.First[ntkn];
                     lookahead.insert(found.begin(), found.end());
                 } else {
@@ -153,11 +153,11 @@ struct State {
     }
 
     State(size_t parent_id): parent_id(parent_id) {}
-    State(Grammar& grammar, const std::vector<Item>& kernel, size_t parent_id):
+    State(LRGrammar& grammar, const std::vector<Item>& kernel, size_t parent_id):
             items(kernel.begin(), kernel.end()), parent_id(parent_id) {
         closure(grammar);
     }
-    State(Grammar& grammar, decltype(items)&& kernel, size_t parent_id):
+    State(LRGrammar& grammar, decltype(items)&& kernel, size_t parent_id):
             items(std::move(kernel)), parent_id(parent_id) {
         closure(grammar);
     }
