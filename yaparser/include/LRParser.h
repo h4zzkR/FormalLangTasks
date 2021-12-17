@@ -56,7 +56,7 @@ protected:
     using kernels_list = std::unordered_map<std::unordered_set<Item, item_hasher<Item, std::false_type>, item_equal<Item, std::false_type>>, size_t,
             sequence_hasher<item_hasher<Item, std::false_type>>, sequence_equal<item_hasher<Item, std::false_type>>>;
 
-    void updateAutomata(size_t state_id, kernels_list &list) {
+    void updateAutomata(size_t state_id, kernels_list& list) {
         /// # FIND KERNELS FOR ALL AVIABLE TRANSITIONS # ///
         std::unordered_map<Grammar::Token, std::unordered_set<Item, item_hasher<Item, std::false_type>,
                 item_equal<Item, std::false_type>>, Grammar::hasher, Grammar::key_equal> kernels;
@@ -105,6 +105,7 @@ protected:
         automata.emplace_back(State(grammar, extractItems(kernel), -1), automata_item_type{});
         /// # START RECURSIVE BUILDING # ///
         updateAutomata(0, list);
+        int t = 0;
     }
     void buildAction() {
         /// # PRE-CALCULATION OF TRANSITIONS # ///
@@ -186,19 +187,17 @@ protected:
         }
     }
 
-    void detachGrammar() {
-        decltype(grammar) prey = std::move(grammar);
-    }
-
     void detachAux(bool complete = false) {
         if (complete) {
             detachTrace();
-            decltype(grammar) prey = std::move(grammar);
+            decltype(automata) prey0(std::move(automata));
+            decltype(action) prey0_5(std::move(action));
+            decltype(grammar) prey(std::move(grammar));
         } else
             decltype(grammar.First) prey2 = std::move(grammar.First);
     }
     void detachTrace() {
-        decltype(trace) prey = std::move(trace);
+        decltype(trace) prey(std::move(trace));
         trace = Trace();
     }
 
@@ -213,11 +212,11 @@ protected:
 public:
     LRParser() = default;
     void fit(const Grammar& g) override {
+        detachAux(true);
         grammar = LRGrammar(g);
         grammar.buildFirst();
         buildAutomata();
         buildAction();
-        detachAux();
    }
 
     bool predict(const std::string& word) override {

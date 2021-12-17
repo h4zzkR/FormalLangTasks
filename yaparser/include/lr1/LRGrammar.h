@@ -116,6 +116,7 @@ struct Grammar {
     Grammar() = default;
     Grammar(const Grammar& g) = default;
     Grammar(Grammar&& g) = default;
+    Grammar& operator=(const Grammar& g) = default;
     Grammar& operator=(Grammar&& g) = default;
     explicit Grammar(std::string start): startNterminal(std::move(start)) {
         add("__START__ -> " + startNterminal, true);
@@ -183,6 +184,8 @@ class LRGrammar: public Grammar {
 public:
 
     LRGrammar& operator=(LRGrammar&& g) = default;
+    LRGrammar& operator=(const LRGrammar& g) = default;
+    LRGrammar(LRGrammar&& g) = default;
     LRGrammar(const LRGrammar& g): Grammar(g) {}
     explicit LRGrammar(const Grammar& g): Grammar(g) {}
     explicit LRGrammar(Grammar&& g): Grammar(g) {}

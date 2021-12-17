@@ -26,6 +26,7 @@ namespace hashing {
         }
     };
 
+    // true - ignore lookaheads in items
     template <typename T, typename Flag = std::true_type>
     struct item_hasher {
         size_t operator()(const T& it) const { return it.hash(Flag()); }
