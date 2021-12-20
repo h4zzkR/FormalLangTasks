@@ -7,3 +7,4 @@ cmake -DCMAKE_BUILD_TYPE:STRING=Debug .. && make coverage_report
 You can check coverage in `build/parser-coverage.html`.
 ___
 ## LR(1) grammar parser.
+Reference: Dragon book & https://serokell.io/blog/how-to-implement-lr1-parser
